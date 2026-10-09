@@ -1,0 +1,97 @@
+[% INCLUDE 'doc-head-open.inc' %]
+<title>[% i18n.title | html %] › Koha</title>
+[% INCLUDE 'doc-head-close.inc' %]
+<style nonce="[% csp_nonce | html %]">
+    #pref-defaults { width: 100%; table-layout: fixed; }
+    #pref-defaults th, #pref-defaults td { vertical-align: top; overflow-wrap: anywhere; }
+    #pref-defaults pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 18em; overflow: auto; }
+    #pref-defaults [hidden] { display: none !important; }
+    .pref-source { overflow-wrap: anywhere; }
+    .pref-controls { display: flex; gap: 1em; flex-wrap: wrap; margin: 1em 0; }
+</style>
+</head>
+<body id="syspref-defaults" class="tools">
+[% INCLUDE 'header.inc' %]
+[% INCLUDE 'cat-search.inc' %]
+<main class="container-fluid" lang="[% plugin_language | html %]">
+    <p><a href="/cgi-bin/koha/plugins/plugins-home.pl">[% i18n.plugins | html %]</a> › [% i18n.title | html %]</p>
+    <nav aria-label="[% i18n.language | html %]">
+        <a href="/cgi-bin/koha/plugins/run.pl?class=Koha::Plugin::HKS3::SysprefDefaults&amp;method=tool&amp;plugin_language=de" lang="de"[% IF plugin_language == 'de' %] aria-current="true"[% END %]>Deutsch</a> |
+        <a href="/cgi-bin/koha/plugins/run.pl?class=Koha::Plugin::HKS3::SysprefDefaults&amp;method=tool&amp;plugin_language=en" lang="en"[% IF plugin_language == 'en' %] aria-current="true"[% END %]>English</a>
+    </nav>
+    <h1>[% i18n.title | html %]</h1>
+    <p>[% i18n.intro | html %]</p>
+    [% IF comparison_error %]
+        <div class="alert alert-danger" role="alert">[% i18n.comparison_error | html %]</div>
+    [% ELSE %]
+        <p>[% i18n.code_version | html %]: <strong>[% code_version | html %]</strong> · [% i18n.db_version | html %]: <strong>[% db_version | html %]</strong></p>
+        [% IF version_mismatch %]
+            <div class="alert alert-warning" role="alert">[% i18n.version_mismatch | html %]</div>
+        [% END %]
+        <details class="pref-source"><summary>[% i18n.source_heading | html %]</summary>
+            <p>[% i18n.file | html %]: <code>[% source_path | html %]</code><br>SHA-256: <code>[% source_sha256 | html %]</code></p>
+            <p>[% i18n.baseline_help | html %]</p>
+            <p>[% i18n.override_help | html %]</p>
+            <p>[% i18n.secrets_help | html %]</p>
+        </details>
+        <p>[% total | html %] [% i18n.preferences | html %] · [% counts.changed | html %] [% i18n.count_changed | html %] · [% counts.equal | html %] [% i18n.count_equal | html %] · [% counts.missing | html %] [% i18n.count_missing | html %] · [% counts.extra | html %] [% i18n.count_extra | html %] · [% counts.overridden | html %] [% i18n.count_overridden | html %]</p>
+        <div class="pref-controls">
+            <label for="pref-query">[% i18n.search | html %] <input id="pref-query" type="search" placeholder="[% i18n.search_placeholder | html %]"></label>
+            <label for="pref-status">[% i18n.display | html %] <select id="pref-status">
+                <option value="differences">[% i18n.filter_differences | html %]</option>
+                <option value="all">[% i18n.filter_all | html %]</option>
+                <option value="changed">[% i18n.filter_changed | html %]</option>
+                <option value="equal">[% i18n.filter_equal | html %]</option>
+                <option value="missing">[% i18n.filter_missing | html %]</option>
+                <option value="extra">[% i18n.filter_extra | html %]</option>
+                <option value="overridden">[% i18n.filter_overridden | html %]</option>
+            </select></label>
+            <span id="pref-visible" role="status" aria-live="polite" data-one="[% i18n.visible_one | html %]" data-other="[% i18n.visible_other | html %]"></span>
+        </div>
+        <noscript><p>[% i18n.no_javascript | html %]</p></noscript>
+        <table id="pref-defaults" class="table table-striped">
+            <caption>[% i18n.caption | html %]</caption>
+            <thead><tr><th scope="col">[% i18n.preference | html %]</th><th scope="col">[% i18n.status | html %]</th><th scope="col">[% i18n.stored | html %]</th><th scope="col">[% i18n.default | html %]</th><th scope="col">[% i18n.staff_override | html %]</th></tr></thead>
+            <tbody>
+                [% FOREACH row IN rows %]
+                <tr data-status="[% row.status | html %]" data-overridden="[% row.overridden | html %]">
+                    <th scope="row"><a href="/cgi-bin/koha/admin/preferences.pl?op=search&amp;searchfield=[% row.name | uri | html %]">[% row.name | html %]</a>[% IF row.masked %]<br><small>[% i18n.protected | html %]</small>[% END %]</th>
+                    <td>[% IF row.status == 'changed' %][% i18n.status_changed | html %][% ELSIF row.status == 'equal' %][% i18n.status_equal | html %][% ELSIF row.status == 'missing' %][% i18n.status_missing | html %][% ELSE %][% i18n.status_extra | html %][% END %]</td>
+                    <td><pre>[% row.current | html %]</pre></td>
+                    <td><pre>[% row.default | html %]</pre></td>
+                    <td><pre>[% row.override | html %]</pre></td>
+                </tr>
+                [% END %]
+            </tbody>
+        </table>
+        <script nonce="[% csp_nonce | html %]">
+        (function () {
+            "use strict";
+            const query = document.getElementById("pref-query");
+            const status = document.getElementById("pref-status");
+            const rows = Array.from(document.querySelectorAll("#pref-defaults tbody tr"));
+            const searchable = rows.map(row => row.textContent.toLocaleLowerCase());
+            function filter() {
+                const text = query.value.toLocaleLowerCase();
+                const mode = status.value;
+                let visible = 0;
+                rows.forEach((row, i) => {
+                    const overridden = row.dataset.overridden === "1";
+                    const matches = mode === "all" ||
+                        (mode === "differences" && (row.dataset.status !== "equal" || overridden)) ||
+                        (mode === "overridden" && overridden) || row.dataset.status === mode;
+                    row.hidden = !(matches && searchable[i].includes(text));
+                    if (!row.hidden) visible++;
+                });
+                const counter = document.getElementById("pref-visible");
+                const message = visible === 1 ? counter.dataset.one : counter.dataset.other;
+                counter.textContent = message.replace("{count}", String(visible));
+            }
+            query.addEventListener("input", filter);
+            status.addEventListener("change", filter);
+            filter();
+        })();
+        </script>
+    [% END %]
+</main>
+[% INCLUDE 'intranet-bottom.inc' %]
